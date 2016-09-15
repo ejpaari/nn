@@ -1,0 +1,1 @@
+A simple NN for recognizing MNIST database of handwritten digits
