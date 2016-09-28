@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../common")
 from prep_terrain_data import make_terrain_data
 from class_vis import pretty_picture, output_image
 from sklearn.naive_bayes import GaussianNB
