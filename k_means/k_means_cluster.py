@@ -34,6 +34,11 @@ for f1, f2 in finance_features:
     plt.scatter(f1, f2)
 plt.show()
 
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler()
+finance_features = scaler.fit_transform(finance_features)
+print "salary 200000.0 and bonus 1000000.0 scaled:",scaler.transform([[200000.0, 1000000.0]])
+
 from sklearn.cluster import KMeans
 kmeans = KMeans(n_clusters=2, random_state=0)
 pred = kmeans.fit_predict(finance_features)
