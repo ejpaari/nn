@@ -1,55 +1,65 @@
-#!/usr/bin/python
-
 import sys
 import pickle
 sys.path.append("../tools/")
 
-from feature_format import featureFormat, targetFeatureSplit
-from tester import dump_classifier_and_data
+from feature_format import feature_format, target_feature_split
+from tester import dump_classifier_and_data, test_classifier
 
-### Task 1: Select what features you'll use.
-### features_list is a list of strings, each of which is a feature name.
-### The first feature must be "poi".
-features_list = ['poi','salary'] # You will need to use more features
+def add_ratio_feature(data_dict, key, new_feature, dividend, divisor):
+    try:
+        data_dict[key][new_feature] = data_dict[key][dividend] / data_dict[name][divisor]
+    except TypeError:
+        data_dict[key][new_feature] = "NaN"
+    except:
+        print "Unexpected error:", sys.exc_info()[0]
+
+features_list = ["poi", "salary", "bonus", "total_payments", "total_stock_value"]
 
 ### Load the dictionary containing the dataset
 with open("final_project_dataset.pkl", "r") as data_file:
     data_dict = pickle.load(data_file)
 
-### Task 2: Remove outliers
-### Task 3: Create new feature(s)
-### Store to my_dataset for easy export below.
+### Remove outliers
+outliers = ["TOTAL", "THE TRAVEL AGENCY IN THE PARK"]
+for outlier in outliers:
+    data_dict.pop(outlier)
+
+### Create new features
+for name in data_dict:    
+    add_ratio_feature(data_dict, name, "from_poi_ratio", "from_poi_to_this_person", "to_messages")
+    add_ratio_feature(data_dict, name, "to_poi_ratio", "from_this_person_to_poi", "from_messages")
+
+features_list += ["from_poi_ratio", "to_poi_ratio"]
+
 my_dataset = data_dict
 
 ### Extract features and labels from dataset for local testing
-data = featureFormat(my_dataset, features_list, sort_keys = True)
-labels, features = targetFeatureSplit(data)
+data = feature_format(my_dataset, features_list, sort_keys = True)
+labels, features = target_feature_split(data)
 
-### Task 4: Try a varity of classifiers
-### Please name your classifier clf for easy export below.
-### Note that if you want to do PCA or other multi-stage operations,
-### you'll need to use Pipelines. For more info:
-### http://scikit-learn.org/stable/modules/pipeline.html
+### Classify
+### Name your classifier clf for easy export below.
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.grid_search import GridSearchCV
+from sklearn.cross_validation import StratifiedKFold
+from sklearn.feature_selection import SelectKBest
 
-# Provided to give you a starting point. Try a variety of classifiers.
-from sklearn.naive_bayes import GaussianNB
-clf = GaussianNB()
+selection = SelectKBest()
+rfc = RandomForestClassifier()
+pipeline = Pipeline([('features', selection), ('classifier', rfc)])
 
-### Task 5: Tune your classifier to achieve better than .3 precision and recall 
-### using our testing script. Check the tester.py script in the final project
-### folder for details on the evaluation method, especially the test_classifier
-### function. Because of the small size of the dataset, the script uses
-### stratified shuffle split cross validation. For more info: 
-### http://scikit-learn.org/stable/modules/generated/sklearn.cross_validation.StratifiedShuffleSplit.html
+parameters = {'features__k': [5, 'all'],
+              'classifier__n_estimators': [50, 100, 200],
+              'classifier__min_samples_split': [2, 4, 6], 
+              'classifier__criterion': ['entropy', 'gini'],
+              'classifier__class_weight': ['balanced_subsample', 'auto', None],
+              'classifier__max_depth': [2, 4, 6]
+}
 
-# Example starting point. Try investigating other evaluation techniques!
-from sklearn.cross_validation import train_test_split
-features_train, features_test, labels_train, labels_test = \
-    train_test_split(features, labels, test_size=0.3, random_state=42)
+clf = GridSearchCV(pipeline, parameters, scoring='recall')
+clf.fit(features, labels)
+test_classifier(clf.best_estimator_, my_dataset, features_list)
 
-### Task 6: Dump your classifier, dataset, and features_list so anyone can
-### check your results. You do not need to change anything below, but make sure
-### that the version of poi_id.py that you submit can be run on its own and
-### generates the necessary .pkl files for validating your results.
-
+### Dump the classifier
 dump_classifier_and_data(clf, my_dataset, features_list)
